@@ -1,0 +1,33 @@
+#!/bin/sh
+# Test stub for curl. Logs "<METHOD> <path> auth=<bearer|none>" to $STUB_LOG,
+# saves the request body (-d) to $STUB_LOG.body, answers from $STUB_DIR/<METHOD>_<path with / -> _>
+# (missing file -> empty body) and exits with the code in <that file>.rc (default 0).
+# With -o, the body goes to the file; on a non-zero code a partial file is left behind, like real curl.
+echo "$*" >> "$STUB_LOG.args"
+method=""; out=""; body=""; auth=none; url=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -X) method=$2; shift ;;
+        -o) out=$2; shift ;;
+        -d|--data) body=$2; shift ;;
+        --speed-time|--speed-limit|--connect-timeout) shift ;;
+        -H) case "$2" in "Authorization: Bearer "*) auth=bearer ;; esac; shift ;;
+        -*) ;;
+        *) url=$1 ;;
+    esac
+    shift
+done
+[ -z "$method" ] && { [ -n "$body" ] && method=POST || method=GET; }
+path=${url#*://*/}
+key="${method}_$(printf '%s' "$path" | tr / _)"
+echo "$method /$path auth=$auth" >> "$STUB_LOG"
+[ -n "$body" ] && printf '%s' "$body" > "$STUB_LOG.body"
+rc=0; [ -f "$STUB_DIR/$key.rc" ] && rc=$(cat "$STUB_DIR/$key.rc")
+if [ "$rc" -ne 0 ]; then
+    [ -n "$out" ] && echo partial > "$out"
+    echo "curl: ($rc) stub failure" >&2
+    exit "$rc"
+fi
+if [ -n "$out" ]; then cat "$STUB_DIR/$key" > "$out" 2>/dev/null || : > "$out"
+else cat "$STUB_DIR/$key" 2>/dev/null; fi
+exit 0

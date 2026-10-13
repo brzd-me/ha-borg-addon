@@ -1,0 +1,38 @@
+# "Backup to borg" automation: paste into Settings → Automations → ⋮ → "Edit in YAML".
+# Adjust the variables and the trigger; replace the notify action with your own.
+id: ha_borg_nightly
+alias: Backup to borg
+description: Uncompressed full HA backup → the HA borg add-on sends it to the borg repository
+mode: single
+variables:
+  sensor: sensor.ha_borg_last_backup   # = add-on option sensor_entity
+  addon: local_ha-borg                 # add-on slug, see the add-on page
+  backup_prefix: borg                  # = add-on option backup_prefix
+triggers:
+  - trigger: time
+    at: "02:30:00"
+actions:
+  - action: hassio.backup_full
+    data:
+      name: "{{ backup_prefix }} {{ now().strftime('%Y-%m-%d %H:%M') }}"
+      compressed: false
+  - delay: "00:00:10"
+  - variables:
+      started: "{{ now().timestamp() }}"
+  - action: hassio.addon_start
+    data:
+      addon: "{{ addon }}"
+  # Wait for the result of this very run: the sensor changed after the start and is no longer running.
+  # (Yesterday's "ok" is too old to match; a fast failure is not missed.)
+  - wait_template: >-
+      {% set s = states[sensor] %}
+      {{ s is not none and s.state not in ['running', 'unknown', 'unavailable']
+         and as_timestamp(s.last_changed) > started | float }}
+    timeout: "02:00:00"
+    continue_on_timeout: true
+  - if: "{{ not wait.completed or is_state(sensor, 'error') }}"
+    then:
+      - action: notify.notify   # replace with your notify action
+        data:
+          message: >-
+            HA borg: {{ state_attr(sensor, 'error') if wait.completed else 'no result within 2 h' }}

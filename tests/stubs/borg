@@ -1,0 +1,14 @@
+#!/bin/sh
+# Test stub for borg. Logs "cwd=<dir> <args>" to $STUB_LOG; behaviour from $BORG_STUB_MODE:
+# ok (default) | exists | other_exists | fail. "fail_on=<archive substring>" in $BORG_STUB_FAIL_ON fails only that archive.
+echo "cwd=$PWD $*" >> "$STUB_LOG"
+mode=${BORG_STUB_MODE:-ok}
+if [ -n "$BORG_STUB_FAIL_ON" ]; then
+    case "$*" in *"$BORG_STUB_FAIL_ON"*) mode=fail ;; *) mode=ok ;; esac
+fi
+case "$mode" in
+    ok) echo '{"archive":{"stats":{"deduplicated_size":10485760}}}' ;;
+    exists) archive=$(printf '%s\n' "$@" | sed -n 's/^:://p'); echo "Archive $archive already exists" >&2; exit 2 ;;
+    other_exists) echo "Lock file already exists: /stub/lock.exclusive" >&2; exit 2 ;;
+    fail) echo "Connection closed by remote host" >&2; exit 2 ;;
+esac

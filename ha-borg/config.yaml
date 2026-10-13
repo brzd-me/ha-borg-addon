@@ -1,0 +1,38 @@
+name: HA borg
+version: "0.1.0"
+slug: ha-borg
+url: https://github.com/brzd-me/ha-borg-addon
+description: Sends uncompressed HA backups with a given name prefix to a borg repository, each exactly once
+arch:
+  - amd64
+  - aarch64
+startup: once
+boot: manual
+init: false
+hassio_api: true
+hassio_role: backup
+homeassistant_api: true
+backup_exclude:
+  - "borg/.cache/*"
+options:
+  borg_repo: ""
+  borg_passphrase: ""
+  borg_compression: lz4
+  backup_prefix: borg
+  archive_prefix: ha
+  keep_local: 2
+  max_age_hours: 6
+  sensor_entity: sensor.ha_borg_last_backup
+  sensor_name: "HA borg: last backup"
+  stall_timeout_seconds: 300
+schema:
+  borg_repo: str
+  borg_passphrase: password
+  borg_compression: str
+  backup_prefix: str
+  archive_prefix: str
+  keep_local: int(1,)
+  max_age_hours: int(1,)
+  sensor_entity: str
+  sensor_name: str
+  stall_timeout_seconds: int(30,)
